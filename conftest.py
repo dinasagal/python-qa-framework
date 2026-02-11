@@ -1,6 +1,7 @@
 import pytest
 from playwright.sync_api import sync_playwright
 from core.api_client import APIClient
+import uuid
 
 
 @pytest.fixture(scope="session")
@@ -18,8 +19,4 @@ def page(browser):
     yield page
     context.close()
 
-
-@pytest.fixture
-def api_client():
-    return APIClient("https://reqres.in/api")
 
