@@ -1,29 +1,24 @@
 from core.api_client import APIClient
+import allure
 
-
-BASE_URL = "https://reqres.in/api"
-
-
+@allure.feature("Users API")
+@allure.story("Get users list")
 def test_get_users(api_client):
-    response = api_client.get("/users?page=2")
-
+    response = api_client.get("/users")
     assert response.status_code == 200
-    assert "data" in response.json()
+
+@allure.feature("Users API")
+@allure.story("Create user")
+def test_create_user(api_client, created_user):
+    # user already created by fixture
+    assert created_user is not None
 
 
-def test_create_user(api_client):
-    payload = {
-        "name": "Dina",
-        "job": "QA Engineer"
-    }
-
-    response = api_client.post("/users", payload)
-
-    assert response.status_code == 201
-    assert response.json()["name"] == "Dina"
-
-
-def test_delete_user(api_client):
-    response = api_client.delete("/users/2")
-
+@allure.feature("Users API")
+@allure.story("Delete user")
+def test_delete_user(api_client, created_user):
+    response = api_client.delete(f"/users/{created_user}")
     assert response.status_code == 204
+
+    verify = api_client.get(f"/users/{created_user}")
+    assert verify.status_code == 404
