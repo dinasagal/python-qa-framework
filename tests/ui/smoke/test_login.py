@@ -1,3 +1,5 @@
+import pytest
+
 from pages.login_page import LoginPage
 
 
@@ -5,6 +7,7 @@ EMAIL = "ngjipiqmftuoxbkecx@nespj.com"
 PASSWORD = "123456"
 
 
+@pytest.mark.smoke
 def test_successful_login(page):
     login = LoginPage(page)
 
