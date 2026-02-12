@@ -1,11 +1,19 @@
 from pages.login_page import LoginPage
 
 
+EMAIL = "ngjipiqmftuoxbkecx@nespj.com"
+PASSWORD = "123456"
+
+
 def test_successful_login(page):
     login = LoginPage(page)
 
-    login.open("https://www.saucedemo.com/")
+    login.open_home()
 
-    login.login("standard_user", "secret_sauce")
+    login.login(EMAIL, PASSWORD)
+    login.wait_until_logged_in(EMAIL)
 
-    assert "inventory" in page.url
+    assert login.is_auth_section_hidden()
+    assert login.is_tasks_section_visible()
+    assert EMAIL in login.get_user_email_text()
+    assert login.is_auth_error_hidden()
