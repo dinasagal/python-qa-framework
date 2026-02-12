@@ -9,6 +9,8 @@ class LoginPage(BasePage):
     TASKS_SECTION = "#tasks-section"
     USER_EMAIL = "#user-email"
     AUTH_ERROR = "#auth-error"
+    SIDEBAR_LOGOUT = "#sidebar-logout"
+    AUTH_PANEL_LOGOUT = "#logout-btn"
 
     LOGIN_FORM = "#login-form"
     LOGIN_EMAIL = "#login-form input[name='email']"
@@ -44,3 +46,17 @@ class LoginPage(BasePage):
 
     def is_auth_error_hidden(self):
         return self.page.locator(self.AUTH_ERROR).is_hidden()
+
+    def logout(self):
+        sidebar_logout = self.page.locator(self.SIDEBAR_LOGOUT)
+        auth_panel_logout = self.page.locator(self.AUTH_PANEL_LOGOUT)
+
+        if sidebar_logout.count() > 0 and sidebar_logout.first.is_visible():
+            sidebar_logout.first.click()
+        elif auth_panel_logout.count() > 0 and auth_panel_logout.first.is_visible():
+            auth_panel_logout.first.click()
+        else:
+            return
+
+        self.page.wait_for_selector(self.AUTH_SECTION, state="visible")
+        self.page.wait_for_selector(self.TASKS_SECTION, state="hidden")
