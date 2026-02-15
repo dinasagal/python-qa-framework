@@ -94,4 +94,26 @@ def test_data_factory():
 
     return _build
 
+import os
+import datetime
+import pytest
+
+
+def pytest_configure(config):
+    """
+    Runs before any test session starts.
+    We override the allure results directory dynamically.
+    """
+
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    results_dir = f"allure-results-{timestamp}"
+
+    # store for later usage (optional)
+    config.option.allure_report_dir = results_dir
+
+    # tell allure where to write results
+    os.environ["ALLURE_RESULTS_DIR"] = results_dir
+
+    print(f"\nAllure results will be saved to: {results_dir}\n")
+
 
