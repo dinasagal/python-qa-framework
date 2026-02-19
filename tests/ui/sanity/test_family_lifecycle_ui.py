@@ -31,21 +31,9 @@ def _get_parent_credentials():
     }
 
 
-@pytest.mark.regression
-def test_family_lifecycle_ui_journey(page, ctx):
-    """
-    Stateful release-blocker sanity suite:
-    Parent -> child creation -> user switching -> task lifecycle -> calendar -> messages -> permissions.
-    This is intentionally one continuous journey (non-isolated flow).
-    """
-    app = FamilyAppPage(page)
-
-    # Shared runtime data used across the full journey.
+def _prepare_runtime_context(ctx):
     creds = _get_parent_credentials()
     token = uuid.uuid4().hex[:8]
-    child_display_name = f"Kid-{token}"
-    reply_text = f"Child reply {token}"
-    event_title = f"Sanity Event {token}"
 
     ctx.parent_email = creds["email"]
     ctx.parent_password = creds["password"]
@@ -53,9 +41,15 @@ def test_family_lifecycle_ui_journey(page, ctx):
     ctx.child_password = f"KidPass{token}"
     ctx.task_title = f"Sanity Task {token}"
     ctx.message_text = f"Family sanity message {token}"
-    allure.attach(str(vars(ctx)), name="Sanity Context", attachment_type=allure.attachment_type.TEXT)
 
-    # 01 Parent Login
+    return {
+        "child_display_name": f"Kid-{token}",
+        "reply_text": f"Child reply {token}",
+        "event_title": f"Sanity Event {token}",
+    }
+
+
+def parent_login(app, ctx):
     with allure.step("01 Parent logs into the application"):
         app.open_home()
         app.login(ctx.parent_email, ctx.parent_password)
@@ -64,7 +58,8 @@ def test_family_lifecycle_ui_journey(page, ctx):
         assert app.is_sidebar_visible(), "Sidebar should be visible for logged-in parent."
         print("Parent logged in")
 
-    # 02 Family Exists
+
+def verify_family_exists(app):
     with allure.step("02 Verify family panel and family settings visibility"):
         app.open_family_settings()
         assert app.is_family_settings_section_visible(), "Family settings section should be visible for parent."
@@ -75,7 +70,8 @@ def test_family_lifecycle_ui_journey(page, ctx):
         assert settings_family_name not in {"", "—"}, "Family name should exist in UI family labels."
         print("Family exists and is visible")
 
-    # 03 Add Child
+
+def create_child(app, ctx, child_display_name):
     with allure.step("03 Parent adds child user"):
         app.add_child_user(
             child_email=ctx.child_email,
@@ -88,14 +84,16 @@ def test_family_lifecycle_ui_journey(page, ctx):
         ), "New child should appear in family members list."
         print("Child created")
 
-    # 04 Child Login
+
+def child_login_and_verify_restrictions(app, ctx):
     with allure.step("04 Switch user via UI logout/login to child"):
         app.switch_user_via_ui(ctx.child_email, ctx.child_password)
         assert app.is_tasks_section_visible(), "Child should land on Tasks section after login."
         assert not app.is_family_settings_nav_visible(), "Child must not see Family Settings entry in sidebar."
         print("Child logged in with restricted sidebar")
 
-    # 05 Parent Assigns Task
+
+def parent_assign_task(app, ctx, child_display_name):
     with allure.step("05 Switch back to parent and assign task to child"):
         app.switch_user_via_ui(ctx.parent_email, ctx.parent_password)
         app.create_task(
@@ -110,7 +108,8 @@ def test_family_lifecycle_ui_journey(page, ctx):
         ), "Task card should show child assignee identity."
         print("Task assigned to child")
 
-    # 06 Child Completes Task
+
+def child_complete_task(app, ctx):
     with allure.step("Step 06 Child completes assigned task"):
         app.switch_user_via_ui(ctx.child_email, ctx.child_password)
         assert app.is_open_task_visible(ctx.task_title), "Child should see assigned open task before completion."
@@ -119,7 +118,8 @@ def test_family_lifecycle_ui_journey(page, ctx):
         assert not app.is_open_task_visible(ctx.task_title), "Completed task should not remain in child's open task list."
         print("Task completed by child")
 
-    # 07 Parent Archives Task (completed task visible in archive)
+
+def parent_verify_archive(app, ctx, child_display_name):
     with allure.step("Step 07: Parent verifies completed task in archive"):
         app.switch_user_via_ui(ctx.parent_email, ctx.parent_password)
         assert app.wait_for_archive_task(ctx.task_title), "Parent archive should contain completed child task."
@@ -129,23 +129,27 @@ def test_family_lifecycle_ui_journey(page, ctx):
         ), "Archived task should preserve child assignment display."
         print("Parent verified archived task")
 
-    # 08 Calendar Event
+
+def parent_create_calendar_event(app, event_title):
     with allure.step("Step 08: Parent creates calendar event"):
         app.create_calendar_event(event_title)
         assert app.is_calendar_event_visible(event_title), "Newly created calendar event should appear in month grid."
         print("Calendar event created and visible")
 
-    # 09 Recurring Event TBD - intentionally skipped per product requirement.
+
+def skip_recurring_event_tbd():
     with allure.step("Step 09: Recurring event validation skipped (TBD in product)"):
         print("Recurring event creation/validation skipped as per current product scope")
 
-    # 10 Message Board Post
+
+def parent_post_message(app, ctx):
     with allure.step("Step 10: Parent posts message on message board"):
         app.post_message(ctx.message_text)
         assert app.message_exists(ctx.message_text), "Parent message should appear in message feed."
         print("Parent message posted")
 
-    # 11 Child Reply
+
+def child_reply_to_message(app, ctx, reply_text):
     with allure.step("Step 11: Child replies to parent message"):
         app.switch_user_via_ui(ctx.child_email, ctx.child_password)
         app.post_message(reply_text)
@@ -153,10 +157,39 @@ def test_family_lifecycle_ui_journey(page, ctx):
         assert app.message_exists(reply_text), "Child reply should appear in message feed."
         print("Child reply visible together with parent message")
 
-    # 12 Permission Enforcement
+
+def child_permission_enforcement(app):
     with allure.step("Step 12: Child attempts direct access to add-member URL"):
         app.open_direct_settings_url()
         assert not app.is_family_settings_nav_visible(), "Child direct navigation should not expose Family Settings sidebar link."
         assert not app.is_family_settings_section_visible(), "Child should not be able to view family settings section."
         assert not app.is_add_child_form_visible(), "Child should not be able to access add-child form."
         print("Child blocked from settings/add-member")
+
+
+@pytest.mark.regression
+def test_family_lifecycle_ui_journey(page, ctx):
+    """
+    Stateful release-blocker sanity suite:
+    Parent -> child creation -> user switching -> task lifecycle -> calendar -> messages -> permissions.
+    This is intentionally one continuous journey (non-isolated flow).
+    """
+    app = FamilyAppPage(page)
+    runtime = _prepare_runtime_context(ctx)
+    child_display_name = runtime["child_display_name"]
+    reply_text = runtime["reply_text"]
+    event_title = runtime["event_title"]
+    allure.attach(str(vars(ctx)), name="Sanity Context", attachment_type=allure.attachment_type.TEXT)
+
+    parent_login(app, ctx)
+    verify_family_exists(app)
+    create_child(app, ctx, child_display_name)
+    child_login_and_verify_restrictions(app, ctx)
+    parent_assign_task(app, ctx, child_display_name)
+    child_complete_task(app, ctx)
+    parent_verify_archive(app, ctx, child_display_name)
+    parent_create_calendar_event(app, event_title)
+    skip_recurring_event_tbd()
+    parent_post_message(app, ctx)
+    child_reply_to_message(app, ctx, reply_text)
+    child_permission_enforcement(app)
