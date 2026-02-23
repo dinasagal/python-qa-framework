@@ -49,6 +49,10 @@ def _prepare_runtime_context(ctx):
     }
 
 
+def _attach_log(name, message):
+    allure.attach(str(message), name=name, attachment_type=allure.attachment_type.TEXT)
+
+
 def parent_login(app, ctx):
     with allure.step("01 Parent logs into the application"):
         app.open_home()
@@ -56,6 +60,7 @@ def parent_login(app, ctx):
         app.wait_until_logged_in(ctx.parent_email)
         assert app.is_tasks_section_visible(), "Parent should be redirected to Tasks section after login."
         assert app.is_sidebar_visible(), "Sidebar should be visible for logged-in parent."
+        _attach_log("Step01 diagnostics", app.get_ui_diagnostics())
         print("Parent logged in")
 
 
@@ -68,6 +73,8 @@ def verify_family_exists(app):
         if settings_family_name in {"", "—"}:
             settings_family_name = app.get_family_name_text()
         assert settings_family_name not in {"", "—"}, "Family name should exist in UI family labels."
+        _attach_log("Step02 family name", settings_family_name)
+        _attach_log("Step02 diagnostics", app.get_ui_diagnostics())
         print("Family exists and is visible")
 
 
@@ -82,6 +89,8 @@ def create_child(app, ctx, child_display_name):
         assert (
             app.is_family_member_listed(child_display_name) or app.is_family_member_listed(ctx.child_email)
         ), "New child should appear in family members list."
+        _attach_log("Step03 child", f"email={ctx.child_email} name={child_display_name}")
+        _attach_log("Step03 diagnostics", app.get_ui_diagnostics())
         print("Child created. Display name:", child_display_name)
 
 
@@ -90,6 +99,8 @@ def child_login_and_verify_restrictions(app, ctx):
         app.switch_user_via_ui(ctx.child_email, ctx.child_password)
         assert app.is_tasks_section_visible(), "Child should land on Tasks section after login."
         assert not app.is_family_settings_nav_visible(), "Child must not see Family Settings entry in sidebar."
+        _attach_log("Step04 child user", ctx.child_email)
+        _attach_log("Step04 diagnostics", app.get_ui_diagnostics())
         print("Child logged in with restricted sidebar")
 
 
@@ -106,6 +117,8 @@ def parent_assign_task(app, ctx, child_display_name):
         assert (
             ctx.child_email in created_task_text or child_display_name in created_task_text
         ), "Task card should show child assignee identity."
+        _attach_log("Step05 created task", created_task_text)
+        _attach_log("Step05 diagnostics", app.get_ui_diagnostics())
         print("Task assigned to child. " ,ctx.task_title)
 
 
@@ -143,6 +156,7 @@ def child_complete_task(app, ctx):
             "Completed task should not remain in child's open task list after retries. "
             + app.get_ui_diagnostics()
         )
+        _attach_log("Step06 final diagnostics", app.get_ui_diagnostics())
         print("Task completed by child")
 
 
@@ -154,6 +168,8 @@ def parent_verify_archive(app, ctx, child_display_name):
         assert (
             ctx.child_email in archived_task_text or child_display_name in archived_task_text
         ), "Archived task should preserve child assignment display."
+        _attach_log("Step07 archived task", archived_task_text)
+        _attach_log("Step07 diagnostics", app.get_ui_diagnostics())
         print("Parent verified archived task")
 
 
@@ -161,6 +177,8 @@ def parent_create_calendar_event(app, event_title):
     with allure.step("Step 08: Parent creates calendar event"):
         app.create_calendar_event(event_title)
         assert app.is_calendar_event_visible(event_title), "Newly created calendar event should appear in month grid."
+        _attach_log("Step08 event title", event_title)
+        _attach_log("Step08 diagnostics", app.get_ui_diagnostics())
         print("Calendar event created and visible")
 
 
@@ -173,6 +191,8 @@ def parent_post_message(app, ctx):
     with allure.step("Step 10: Parent posts message on message board"):
         app.post_message(ctx.message_text)
         assert app.message_exists(ctx.message_text), "Parent message should appear in message feed."
+        _attach_log("Step10 message", ctx.message_text)
+        _attach_log("Step10 diagnostics", app.get_ui_diagnostics())
         print("Parent message posted")
 
 
@@ -182,6 +202,8 @@ def child_reply_to_message(app, ctx, reply_text):
         app.post_message(reply_text)
         assert app.message_exists(ctx.message_text), "Parent message should remain visible to child."
         assert app.message_exists(reply_text), "Child reply should appear in message feed."
+        _attach_log("Step11 reply", reply_text)
+        _attach_log("Step11 diagnostics", app.get_ui_diagnostics())
         print("Child reply visible together with parent message")
 
 
@@ -191,6 +213,7 @@ def child_permission_enforcement(app):
         assert not app.is_family_settings_nav_visible(), "Child direct navigation should not expose Family Settings sidebar link."
         assert not app.is_family_settings_section_visible(), "Child should not be able to view family settings section."
         assert not app.is_add_child_form_visible(), "Child should not be able to access add-child form."
+        _attach_log("Step12 diagnostics", app.get_ui_diagnostics())
         print("Child blocked from settings/add-member")
 
 

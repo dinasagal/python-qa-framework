@@ -8,6 +8,7 @@ on:
 jobs:
   sanity-tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       # Checkout QA repo
@@ -39,8 +40,18 @@ jobs:
       - name: Start app server
         run: |
           cd familyTaskApp
-          python3 -m http.server 5500 &
-          sleep 5
+          nohup python3 -m http.server 5500 > ../app-server.log 2>&1 &
+          cd ..
+          for i in {1..20}; do
+            if curl -fsS http://localhost:5500/index.html > /dev/null; then
+              echo "App server is ready"
+              exit 0
+            fi
+            echo "Waiting for app server... ($i/20)"
+            sleep 2
+          done
+          echo "App server did not become ready in time"
+          exit 1
 
       # Setup Python
       - name: Setup Python
@@ -56,4 +67,46 @@ jobs:
 
       # Run sanity tests
       - name: Run sanity tests
-        run: pytest -m sanity
+        env:
+          UI_USER_DEFAULT_EMAIL: ${{ secrets.UI_USER_DEFAULT_EMAIL }}
+          UI_USER_DEFAULT_PASSWORD: ${{ secrets.UI_USER_DEFAULT_PASSWORD }}
+          CI: "true"
+        run: |
+          pytest -m sanity 2>&1 | tee pytest-output.log
+
+      - name: Upload Allure results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results
+          path: allure-results-*
+          if-no-files-found: warn
+
+      - name: Upload test debug logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sanity-debug-logs
+          path: |
+            pytest-output.log
+            app-server.log
+          if-no-files-found: warn
+
+      - name: Generate Allure HTML report
+        if: always()
+        run: |
+          npm install -g allure-commandline --no-audit --no-fund
+          LATEST_RESULTS_DIR=$(ls -dt allure-results-* 2>/dev/null | head -n 1 || true)
+          if [ -z "$LATEST_RESULTS_DIR" ]; then
+            echo "No allure results directory found; skipping report generation"
+            exit 0
+          fi
+          allure generate "$LATEST_RESULTS_DIR" --clean -o allure-report || true
+
+      - name: Upload Allure HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-html-report
+          path: allure-report
+          if-no-files-found: warn
