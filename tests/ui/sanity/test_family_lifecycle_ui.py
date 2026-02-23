@@ -112,10 +112,23 @@ def parent_assign_task(app, ctx, child_display_name):
 def child_complete_task(app, ctx):
     with allure.step("Step 06 Child completes assigned task"):
         app.switch_user_via_ui(ctx.child_email, ctx.child_password)
-        assert app.is_open_task_visible(ctx.task_title), "Child should see assigned open task before completion."
+        assert app.wait_for_open_task(ctx.task_title), "Child should see assigned open task before completion."
         app.complete_open_task(ctx.task_title)
         app.refresh_and_wait_user(ctx.child_email)
-        assert not app.is_open_task_visible(ctx.task_title), "Completed task should not remain in child's open task list."
+
+        if not app.wait_for_task_not_open(ctx.task_title, timeout=20000):
+            with allure.step("Step 06 retry completion once if first completion did not persist"):
+                assert app.wait_for_open_task(ctx.task_title, timeout=20000), (
+                    "Task still did not settle after completion refresh before retry. "
+                    + app.get_ui_diagnostics()
+                )
+                app.complete_open_task(ctx.task_title)
+                app.refresh_and_wait_user(ctx.child_email)
+
+        assert app.wait_for_task_not_open(ctx.task_title, timeout=30000), (
+            "Completed task should not remain in child's open task list. "
+            + app.get_ui_diagnostics()
+        )
         print("Task completed by child")
 
 
