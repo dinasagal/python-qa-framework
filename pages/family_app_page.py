@@ -283,7 +283,12 @@ class FamilyAppPage(BasePage):
             return True
         except PlaywrightTimeoutError:
             self.page.reload(wait_until="domcontentloaded")
-            self.wait_until_logged_in(self.page.locator(self.USER_EMAIL).text_content() or "")
+            current_email = (self.page.locator(self.USER_EMAIL).text_content() or "").strip()
+            if current_email and current_email != "—":
+                self.wait_until_logged_in(current_email)
+            else:
+                self.page.wait_for_selector(self.TASKS_SECTION, state="visible")
+                self.page.wait_for_selector(self.SIDEBAR, state="visible")
             self.open_tasks()
 
         try:

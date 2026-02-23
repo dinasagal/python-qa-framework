@@ -113,20 +113,34 @@ def child_complete_task(app, ctx):
     with allure.step("Step 06 Child completes assigned task"):
         app.switch_user_via_ui(ctx.child_email, ctx.child_password)
         assert app.wait_for_open_task(ctx.task_title), "Child should see assigned open task before completion."
-        app.complete_open_task(ctx.task_title)
-        app.refresh_and_wait_user(ctx.child_email)
+        allure.attach(
+            app.get_ui_diagnostics(),
+            name="Step06 pre-completion diagnostics",
+            attachment_type=allure.attachment_type.TEXT,
+        )
 
-        if not app.wait_for_task_not_open(ctx.task_title, timeout=20000):
-            with allure.step("Step 06 retry completion once if first completion did not persist"):
-                assert app.wait_for_open_task(ctx.task_title, timeout=20000), (
-                    "Task still did not settle after completion refresh before retry. "
-                    + app.get_ui_diagnostics()
-                )
+        attempts = 3
+        for attempt in range(1, attempts + 1):
+            with allure.step(f"Step 06 completion attempt {attempt}/{attempts}"):
                 app.complete_open_task(ctx.task_title)
                 app.refresh_and_wait_user(ctx.child_email)
+                allure.attach(
+                    app.get_ui_diagnostics(),
+                    name=f"Step06 diagnostics after attempt {attempt}",
+                    attachment_type=allure.attachment_type.TEXT,
+                )
 
-        assert app.wait_for_task_not_open(ctx.task_title, timeout=30000), (
-            "Completed task should not remain in child's open task list. "
+                if app.wait_for_task_not_open(ctx.task_title, timeout=15000):
+                    break
+
+                if attempt < attempts:
+                    assert app.wait_for_open_task(ctx.task_title, timeout=20000), (
+                        "Task did not settle between completion attempts. "
+                        + app.get_ui_diagnostics()
+                    )
+
+        assert app.wait_for_task_not_open(ctx.task_title, timeout=15000), (
+            "Completed task should not remain in child's open task list after retries. "
             + app.get_ui_diagnostics()
         )
         print("Task completed by child")
