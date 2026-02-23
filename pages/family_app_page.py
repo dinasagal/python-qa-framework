@@ -270,38 +270,16 @@ class FamilyAppPage(BasePage):
 
     def wait_for_open_task(self, title, timeout=45000):
         self.open_tasks()
-        first_wait = max(5000, timeout // 2)
-        try:
-            self.page.wait_for_function(
-                """({ title }) => {
-                    const cards = Array.from(document.querySelectorAll('#tasks-list .task-card'));
-                    return cards.some((card) => card.textContent.includes(title));
-                }""",
-                arg={"title": title},
-                timeout=first_wait,
-            )
-            return True
-        except PlaywrightTimeoutError:
-            self.page.reload(wait_until="domcontentloaded")
-            current_email = (self.page.locator(self.USER_EMAIL).text_content() or "").strip()
-            if current_email and current_email != "—":
-                self.wait_until_logged_in(current_email)
-            else:
-                self.page.wait_for_selector(self.TASKS_SECTION, state="visible")
-                self.page.wait_for_selector(self.SIDEBAR, state="visible")
-            self.open_tasks()
+
+        task_locator = self.page.locator(
+            "#tasks-list .task-card",
+            has_text=title
+        )
 
         try:
-            self.page.wait_for_function(
-                """({ title }) => {
-                    const cards = Array.from(document.querySelectorAll('#tasks-list .task-card'));
-                    return cards.some((card) => card.textContent.includes(title));
-                }""",
-                arg={"title": title},
-                timeout=max(5000, timeout - first_wait),
-            )
+            task_locator.first.wait_for(state="visible", timeout=timeout)
             return True
-        except PlaywrightTimeoutError:
+        except Exception:
             return False
 
     def wait_for_task_not_open(self, title, timeout=45000):
