@@ -22,9 +22,9 @@ def browser():
 def page(browser):
     context = browser.new_context()
     page = context.new_page()
-    yield page
     page.on("console", lambda msg: print("BROWSER LOG:", msg.text))
     page.on("pageerror", lambda exc: print("PAGE ERROR:", exc))
+    yield page
     context.close()
 
 
