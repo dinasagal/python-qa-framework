@@ -8,8 +8,11 @@ from pages.login_page import LoginPage
 
 @pytest.fixture(scope="session")
 def browser():
+    # GitHub Actions automatically sets CI=true
+    is_ci = os.getenv("CI") == "true"
+
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
+        browser = p.chromium.launch(headless=is_ci)
         yield browser
         browser.close()
 
