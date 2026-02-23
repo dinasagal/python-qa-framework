@@ -82,7 +82,7 @@ def create_child(app, ctx, child_display_name):
         assert (
             app.is_family_member_listed(child_display_name) or app.is_family_member_listed(ctx.child_email)
         ), "New child should appear in family members list."
-        print("Child created")
+        print("Child created. Display name:", child_display_name)
 
 
 def child_login_and_verify_restrictions(app, ctx):
@@ -106,7 +106,7 @@ def parent_assign_task(app, ctx, child_display_name):
         assert (
             ctx.child_email in created_task_text or child_display_name in created_task_text
         ), "Task card should show child assignee identity."
-        print("Task assigned to child")
+        print("Task assigned to child. " ,ctx.task_title)
 
 
 def child_complete_task(app, ctx):
