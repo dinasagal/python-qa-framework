@@ -167,7 +167,7 @@ def child_permission_enforcement(app):
         print("Child blocked from settings/add-member")
 
 
-@pytest.mark.regression
+@pytest.mark.sanity
 def test_family_lifecycle_ui_journey(page, ctx):
     """
     Stateful release-blocker sanity suite:
