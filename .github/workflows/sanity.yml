@@ -1,0 +1,59 @@
+name: Run Sanity UI Tests
+
+on:
+  repository_dispatch:
+    types: [run-sanity]
+  workflow_dispatch:
+
+jobs:
+  sanity-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout QA repo
+      - name: Checkout QA repo
+        uses: actions/checkout@v4
+
+      # Checkout Family App repo
+      - name: Checkout Family App
+        uses: actions/checkout@v4
+        with:
+          repository: dinasagal/familyTaskApp
+          path: familyTaskApp
+
+      # Create firebase.config.js dynamically
+      - name: Create firebase.config.js
+        run: |
+          cat <<EOF > familyTaskApp/firebase.config.js
+          export const firebaseConfig = {
+            apiKey: "${{ secrets.FIREBASE_API_KEY }}",
+            authDomain: "${{ secrets.FIREBASE_AUTH_DOMAIN }}",
+            projectId: "${{ secrets.FIREBASE_PROJECT_ID }}",
+            storageBucket: "${{ secrets.FIREBASE_STORAGE_BUCKET }}",
+            messagingSenderId: "${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}",
+            appId: "${{ secrets.FIREBASE_APP_ID }}"
+          };
+          EOF
+
+      # Start local server
+      - name: Start app server
+        run: |
+          cd familyTaskApp
+          python3 -m http.server 5500 &
+          sleep 5
+
+      # Setup Python
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # Install dependencies
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          playwright install --with-deps
+
+      # Run sanity tests
+      - name: Run sanity tests
+        run: pytest -m sanity
