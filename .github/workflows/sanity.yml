@@ -56,4 +56,4 @@ jobs:
 
       # Run sanity tests
       - name: Run sanity tests
-        run: pytest -m sanity
+        run: pytest -m sanity -s
