@@ -12,7 +12,7 @@ def browser():
     is_ci = os.getenv("CI") == "true"
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=is_ci)
+        browser = p.chromium.launch(headless=is_ci, slow_mo=0 if is_ci else 200)
         yield browser
         browser.close()
 
@@ -21,6 +21,8 @@ def browser():
 def page(browser):
     context = browser.new_context()
     page = context.new_page()
+    page.on("console", lambda msg: print("BROWSER LOG:", msg.type, msg.text))
+    page.on("pageerror", lambda exc: print("PAGE ERROR:", exc))
     yield page
     context.close()
 
