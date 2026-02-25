@@ -268,6 +268,59 @@ class FamilyAppPage(BasePage):
         card = self._task_card_locator(title, in_archive=False)
         return card.count() > 0 and card.is_visible()
 
+    def wait_for_open_task(self, title, timeout=45000):
+        self.open_tasks()
+
+        task_locator = self.page.locator(
+            "#tasks-list .task-card",
+            has_text=title
+        )
+
+        try:
+            task_locator.first.wait_for(state="visible", timeout=timeout)
+            return True
+        except Exception:
+            return False
+
+    def wait_for_task_not_open(self, title, timeout=45000):
+        self.open_tasks()
+        first_wait = max(5000, timeout // 2)
+        try:
+            self.page.wait_for_function(
+                """({ title }) => {
+                    const cards = Array.from(document.querySelectorAll('#tasks-list .task-card'));
+                    return !cards.some((card) => card.textContent.includes(title));
+                }""",
+                arg={"title": title},
+                timeout=first_wait,
+            )
+            return True
+        except PlaywrightTimeoutError:
+            self.page.reload(wait_until="domcontentloaded")
+            user_email = (self.page.locator(self.USER_EMAIL).text_content() or "").strip()
+            if user_email and user_email != "—":
+                self.wait_until_logged_in(user_email)
+            self.open_tasks()
+
+        try:
+            self.page.wait_for_function(
+                """({ title }) => {
+                    const cards = Array.from(document.querySelectorAll('#tasks-list .task-card'));
+                    return !cards.some((card) => card.textContent.includes(title));
+                }""",
+                arg={"title": title},
+                timeout=max(5000, timeout - first_wait),
+            )
+            return True
+        except PlaywrightTimeoutError:
+            return False
+
+    def get_ui_diagnostics(self):
+        status_text = (self.page.locator("#status").text_content() or "").strip()
+        auth_error = (self.page.locator("#auth-error").text_content() or "").strip()
+        user_email = (self.page.locator(self.USER_EMAIL).text_content() or "").strip()
+        return f"status='{status_text}' auth_error='{auth_error}' user='{user_email}'"
+
     def is_archive_task_visible(self, title):
         card = self._task_card_locator(title, in_archive=True)
         return card.count() > 0 and card.is_visible()
@@ -301,6 +354,7 @@ class FamilyAppPage(BasePage):
 
     def wait_for_archive_task(self, title, timeout=45000):
         self.open_archive()
+        first_wait = max(5000, timeout // 2)
         try:
             self.page.wait_for_function(
                 """({ title }) => {
@@ -308,7 +362,24 @@ class FamilyAppPage(BasePage):
                     return cards.some((card) => card.textContent.includes(title));
                 }""",
                 arg={"title": title},
-                timeout=timeout,
+                timeout=first_wait,
+            )
+            return True
+        except PlaywrightTimeoutError:
+            self.page.reload(wait_until="domcontentloaded")
+            user_email = (self.page.locator(self.USER_EMAIL).text_content() or "").strip()
+            if user_email and user_email != "—":
+                self.wait_until_logged_in(user_email)
+            self.open_archive()
+
+        try:
+            self.page.wait_for_function(
+                """({ title }) => {
+                    const cards = Array.from(document.querySelectorAll('#archive-list .task-card'));
+                    return cards.some((card) => card.textContent.includes(title));
+                }""",
+                arg={"title": title},
+                timeout=max(5000, timeout - first_wait),
             )
             return True
         except PlaywrightTimeoutError:
